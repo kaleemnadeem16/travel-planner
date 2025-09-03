@@ -29,6 +29,11 @@ This is the central documentation hub for the Travel Planner application. The do
 **Contents**: JWT implementation, OAuth integration, rate limiting, security best practices  
 **Target Audience**: Security engineers, backend developers
 
+### 🤖 [Agents](./agents/README.md)
+**Purpose**: Multi-agent system architecture and AI orchestration  
+**Contents**: Agent design patterns, orchestration flow, communication protocols, context management  
+**Target Audience**: AI engineers, system architects, backend developers
+
 ### 🌐 [External APIs](./external-apis/README.md)
 **Purpose**: Third-party service integrations and API management  
 **Contents**: Maps, weather, places APIs, rate limiting, caching, fallback strategies  

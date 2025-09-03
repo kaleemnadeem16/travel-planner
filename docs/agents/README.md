@@ -14,6 +14,15 @@ The Travel Planner uses a **multi-agent orchestration system** where a central o
 
 ## 📁 Agent Documentation Files
 
+### [00-technology-updates.md](./00-technology-updates.md)
+**Purpose**: Latest AI model information and technology update policies  
+**Contents**: 
+- Current GPT-5 series model specifications and pricing
+- Technology update policy and research schedule
+- Cost optimization strategies with new models
+- Framework evolution tracking
+- Migration strategies for model upgrades
+
 ### [01-orchestration-architecture.md](./01-orchestration-architecture.md)
 **Purpose**: Central orchestration system design and agent coordination  
 **Contents**: 
@@ -67,6 +76,59 @@ The Travel Planner uses a **multi-agent orchestration system** where a central o
 - Testing strategies for agents
 - Deployment patterns
 - Monitoring and observability
+
+### [07-graph-visualization-guide.md](./07-graph-visualization-guide.md)
+**Purpose**: Guide for viewing and creating system diagrams and visualizations  
+**Contents**:
+- Mermaid diagram viewing instructions
+- VS Code extensions for diagram rendering
+- Online tools for graph visualization
+- Interactive trip graph implementation
+- Export options for presentations
+
+## ⚠️ Technology Update Policy
+
+**CRITICAL**: This system uses rapidly evolving AI technology. Before any implementation or updates:
+
+1. **Always search the internet** for latest model releases and pricing
+2. **Check framework updates** for LangChain, FastAPI, and agent tools
+3. **Verify API compatibility** and deprecation notices
+4. **Review cost optimizations** with new model variants
+
+See **[00-technology-updates.md](./00-technology-updates.md)** for current model information and update policies.
+
+## ⚙️ Model Configuration & Flexibility
+
+The system supports **configurable AI models and token limits** for each agent type, allowing optimization based on task complexity and cost requirements:
+
+### Model Tier Strategy (Updated September 2025)
+- **Tier 1 (Premium)**: Complex reasoning agents (Planning, Transport) → **GPT-5**
+- **Tier 2 (Standard)**: Moderate complexity agents (Location, Accommodation, Activity) → **GPT-5-mini**
+- **Tier 3 (Efficient)**: Simple task agents (Weather, Budget) → **GPT-5-nano**
+
+### Environment Configuration
+```env
+# Default Model Settings (Latest GPT-5 Series)
+DEFAULT_MODEL_TIER1=gpt-5
+DEFAULT_MODEL_TIER2=gpt-5-mini
+DEFAULT_MODEL_TIER3=gpt-5-nano
+DEFAULT_MAX_TOKENS=4096
+ENABLE_MODEL_CACHING=true  # 90% cost discount
+
+# Agent-Specific Overrides
+PLANNING_AGENT_MODEL=gpt-5
+PLANNING_AGENT_MAX_TOKENS=8192
+TRANSPORT_AGENT_MODEL=gpt-5
+TRANSPORT_AGENT_MAX_TOKENS=8192
+WEATHER_AGENT_MODEL=gpt-5-nano
+WEATHER_AGENT_MAX_TOKENS=2048
+```
+
+### Future-Proof Design
+- Easy model upgrades without code changes
+- A/B testing different models per agent type
+- Cost optimization through model selection
+- Performance tuning via token limit adjustments
 
 ## 🏗️ Architecture Principles
 
@@ -141,12 +203,12 @@ User selects → Budget Agent recalculates → UI updates affected components
 
 | Component | Design Status | Documentation | Implementation |
 |-----------|---------------|---------------|----------------|
-| Orchestration Architecture | 🟡 In Progress | ⏳ Planned | ⏳ Planned |
-| Agent Type Specifications | 🔴 Not Started | ⏳ Planned | ⏳ Planned |
-| Communication Protocols | 🔴 Not Started | ⏳ Planned | ⏳ Planned |
-| Context Management | 🔴 Not Started | ⏳ Planned | ⏳ Planned |
-| UI Integration | 🔴 Not Started | ⏳ Planned | ⏳ Planned |
-| Implementation Guide | 🔴 Not Started | ⏳ Planned | ⏳ Planned |
+| Orchestration Architecture | ✅ Complete | ✅ Complete | ⏳ Planned |
+| Agent Type Specifications | ✅ Complete | ✅ Complete | ⏳ Planned |
+| Communication Protocols | ✅ Complete | ✅ Complete | ⏳ Planned |
+| Context Management | ✅ Complete | ✅ Complete | ⏳ Planned |
+| UI Integration | ✅ Complete | ✅ Complete | ⏳ Planned |
+| Implementation Guide | ✅ Complete | ✅ Complete | ⏳ Planned |
 
 ## 🔍 Cross-References
 
