@@ -356,9 +356,9 @@ pg_dump travel_planner | gzip > backups/travel_planner_$(date +%Y%m%d).sql.gz
 ### Migration Management
 
 ```python
-# Django migrations example
-python manage.py makemigrations
-python manage.py migrate
+# Alembic migrations example
+alembic revision --autogenerate -m "Create initial tables"
+alembic upgrade head
 
 # Data migration for schema changes
 python manage.py datamigration app_name migration_name

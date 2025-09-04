@@ -33,11 +33,11 @@ A comprehensive travel planning platform built with React frontend and Python ba
 ## 🛠️ Technology Stack
 
 - **Frontend**: React + TypeScript, Tailwind CSS, React Router
-- **Backend**: Django REST Framework, Python 3.11+
-- **Database**: PostgreSQL, Redis (caching)
+- **Backend**: FastAPI + LangGraph, Python 3.11+
+- **Database**: PostgreSQL, Qdrant (Vector DB), Redis
 - **Authentication**: JWT + OAuth2 (Google, Facebook)
-- **External APIs**: OpenWeatherMap, OpenStreetMap, Foursquare
-- **Deployment**: Docker, Nginx, Gunicorn
+- **External APIs**: OpenAI GPT-5, Amadeus, Google Maps, OpenWeatherMap
+- **Deployment**: Docker, Nginx, Uvicorn (ARM64 optimized)
 
 ## 📚 Documentation
 

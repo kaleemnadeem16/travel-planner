@@ -78,8 +78,8 @@ This folder contains comprehensive documentation about the Travel Planner applic
 | Layer | Technology | Purpose |
 |-------|------------|---------|
 | **Frontend** | React, TypeScript | User interface and client-side logic |
-| **Backend** | Django/Flask, Python | API services and business logic |
-| **Database** | PostgreSQL | Primary data storage |
+| **Backend** | FastAPI, LangGraph, Python | API services and multi-agent orchestration |
+| **Database** | PostgreSQL, Qdrant | Primary data storage and vector search |
 | **Cache** | Redis | Session storage and caching |
 | **Proxy** | Nginx | Load balancing and SSL termination |
 | **Container** | Docker | Application packaging and deployment |

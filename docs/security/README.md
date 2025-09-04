@@ -21,11 +21,10 @@
 
 ### Password Storage
 ```python
-# Django example using Argon2 (recommended)
-PASSWORD_HASHERS = [
-    'django.contrib.auth.hashers.Argon2PasswordHasher',
-    'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',
-    'django.contrib.auth.hashers.BCryptPasswordHasher',
+# FastAPI example using Passlib with bcrypt (recommended)
+from passlib.context import CryptContext
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 ]
 
 # Manual password hashing
@@ -57,7 +56,7 @@ verified = ph.verify(hashed, "user_password")
 
 ### Token Configuration
 ```python
-# Django JWT Settings
+# FastAPI JWT Settings
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
@@ -118,7 +117,7 @@ GOOGLE_OAUTH2_CLIENT_ID = "your-google-client-id"
 GOOGLE_OAUTH2_CLIENT_SECRET = "your-google-client-secret"
 GOOGLE_OAUTH2_REDIRECT_URI = "http://localhost:8000/auth/google/callback/"
 
-# Django social auth settings
+# FastAPI social auth settings
 SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = GOOGLE_OAUTH2_CLIENT_ID
 SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = GOOGLE_OAUTH2_CLIENT_SECRET
 SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = [
@@ -248,7 +247,7 @@ SOCIAL_AUTH_FACEBOOK_SCOPE = ['email']
 #### Redis-based Implementation
 ```python
 import redis
-from django.core.cache import cache
+import redis.asyncio as redis
 
 class RateLimitMixin:
     def check_rate_limit(self, request):
@@ -355,7 +354,7 @@ class PlanViewSet(viewsets.ModelViewSet):
 
 ## Security Headers & HTTPS
 
-### Django Security Settings
+### FastAPI Security Settings
 ```python
 # Security settings for production
 SECURE_BROWSER_XSS_FILTER = True
@@ -407,7 +406,7 @@ limit_req zone=api burst=20 nodelay;
 
 ### Input Validation & Sanitization
 ```python
-from django.core.validators import EmailValidator, RegexValidator
+from pydantic import EmailStr, validator
 from bleach import clean
 
 class SecureUserSerializer(serializers.ModelSerializer):
@@ -425,7 +424,7 @@ class SecureUserSerializer(serializers.ModelSerializer):
 ### SQL Injection Prevention
 ```python
 # Always use parameterized queries
-# Django ORM automatically handles this
+# SQLAlchemy automatically handles this
 
 # Good - parameterized
 User.objects.filter(email=user_email)

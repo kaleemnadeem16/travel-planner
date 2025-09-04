@@ -477,7 +477,8 @@ class APIManager:
 
 ### Rate Limiting & Caching
 ```python
-from django.core.cache import cache
+import redis.asyncio as redis
+from fastapi import HTTPException
 from functools import wraps
 
 def api_cache(timeout=3600):

@@ -132,381 +132,556 @@ async def google_oauth():
 ### Travel Plan Management
 
 ```python
-# plans/urls.py
-urlpatterns = [
-    path('plans/', PlanListCreateView.as_view(), name='plan-list-create'),
-    path('plans/<int:pk>/', PlanDetailView.as_view(), name='plan-detail'),
-    path('plans/<int:pk>/share/', PlanShareView.as_view(), name='plan-share'),
-]
+# app/api/routes/plans.py
+from fastapi import APIRouter, Depends, HTTPException, Query
+from typing import List, Optional
+from app.models.schemas import PlanCreate, PlanResponse, PlanUpdate
+from app.services.plan_service import PlanService
+from app.api.dependencies import get_current_user
+
+router = APIRouter(prefix="/plans", tags=["plans"])
+
+@router.post("/", response_model=PlanResponse)
+async def create_plan(
+    plan_data: PlanCreate,
+    current_user: User = Depends(get_current_user)
+):
+    """Create a new travel plan"""
+    return await PlanService.create_plan(plan_data, current_user.id)
+
+@router.get("/", response_model=List[PlanResponse])
+async def get_user_plans(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(10, ge=1, le=100),
+    current_user: User = Depends(get_current_user)
+):
+    """Get user's travel plans with pagination"""
+    return await PlanService.get_user_plans(current_user.id, skip, limit)
+
+@router.get("/{plan_id}", response_model=PlanResponse)
+async def get_plan(
+    plan_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Get specific travel plan"""
+    return await PlanService.get_plan(plan_id, current_user.id)
+
+@router.put("/{plan_id}", response_model=PlanResponse)
+async def update_plan(
+    plan_id: str,
+    plan_data: PlanUpdate,
+    current_user: User = Depends(get_current_user)
+):
+    """Update travel plan"""
+    return await PlanService.update_plan(plan_id, plan_data, current_user.id)
+
+@router.delete("/{plan_id}")
+async def delete_plan(
+    plan_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Delete travel plan"""
+    await PlanService.delete_plan(plan_id, current_user.id)
+    return {"message": "Plan deleted successfully"}
+
+@router.post("/{plan_id}/share")
+async def share_plan(
+    plan_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Share travel plan"""
+    return await PlanService.share_plan(plan_id, current_user.id)
 ```
 
-## Data Models
-
-### User Model (Custom)
+### Agent Interaction Endpoints
 
 ```python
-# authentication/models.py
-from django.contrib.auth.models import AbstractUser
-from django.db import models
+# app/api/routes/agents.py
+from fastapi import APIRouter, Depends, BackgroundTasks
+from typing import Dict, Any
+from app.models.schemas import AgentTaskRequest, AgentTaskResponse
+from app.orchestrator.coordinator import AgentCoordinator
+from app.api.dependencies import get_current_user
 
-class CustomUser(AbstractUser):
-    email = models.EmailField(unique=True)
-    first_name = models.CharField(max_length=30, blank=True)
-    last_name = models.CharField(max_length=30, blank=True)
-    date_joined = models.DateTimeField(auto_now_add=True)
-    is_verified = models.BooleanField(default=False)
-    
-    # OAuth fields
-    google_id = models.CharField(max_length=100, blank=True, null=True)
-    facebook_id = models.CharField(max_length=100, blank=True, null=True)
-    
-    USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['username']
-    
-    def __str__(self):
-        return self.email
+router = APIRouter(prefix="/agents", tags=["agents"])
+
+@router.post("/tasks", response_model=AgentTaskResponse)
+async def create_agent_task(
+    task_request: AgentTaskRequest,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user)
+):
+    """Create and execute agent task"""
+    return await AgentCoordinator.execute_task(task_request, current_user.id)
+
+@router.get("/tasks/{task_id}", response_model=AgentTaskResponse)
+async def get_agent_task(
+    task_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Get agent task status and results"""
+    return await AgentCoordinator.get_task_status(task_id, current_user.id)
+
+@router.websocket("/ws/{plan_id}")
+async def websocket_agent_updates(
+    websocket: WebSocket,
+    plan_id: str,
+    current_user: User = Depends(get_current_user_ws)
+):
+    """Real-time agent progress updates via WebSocket"""
+    await AgentCoordinator.handle_websocket_connection(websocket, plan_id, current_user.id)
 ```
 
-### Plan Model
+## 🗄️ Data Models (SQLAlchemy)
+
+### User Model
 
 ```python
-# plans/models.py
-from django.db import models
-from django.contrib.auth import get_user_model
+# app/models/database.py
+from sqlalchemy import Column, String, Boolean, DateTime, Text, DECIMAL, Integer
+from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.sql import func
+import uuid
 
-User = get_user_model()
+Base = declarative_base()
 
-class Plan(models.Model):
-    PLAN_STATUS_CHOICES = [
-        ('draft', 'Draft'),
-        ('published', 'Published'),
-        ('archived', 'Archived'),
-    ]
+class User(Base):
+    __tablename__ = "users"
     
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='plans')
-    title = models.CharField(max_length=200)
-    description = models.TextField(blank=True)
-    destination = models.CharField(max_length=100)
-    start_date = models.DateField(null=True, blank=True)
-    end_date = models.DateField(null=True, blank=True)
-    budget = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    status = models.CharField(max_length=20, choices=PLAN_STATUS_CHOICES, default='draft')
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    username = Column(String(100), unique=True, nullable=False, index=True)
+    password_hash = Column(String(255), nullable=False)
     
-    # JSON field for flexible plan data
-    plan_data = models.JSONField(default=dict, blank=True)
+    # Personal information
+    first_name = Column(String(100))
+    last_name = Column(String(100))
+    phone_number = Column(String(20))
     
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    # User preferences and profile
+    profile_data = Column(JSONB, default={})
+    travel_preferences = Column(JSONB, default={})
     
-    class Meta:
-        ordering = ['-updated_at']
-        indexes = [
-            models.Index(fields=['user', '-updated_at']),
-        ]
+    # Subscription and status
+    subscription_tier = Column(String(50), default='free')
+    is_active = Column(Boolean, default=True)
+    is_verified = Column(Boolean, default=False)
     
-    def __str__(self):
-        return f"{self.title} - {self.user.email}"
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    last_login = Column(DateTime(timezone=True))
+    
+    def __repr__(self):
+        return f"<User {self.email}>"
+
+class TravelPlan(Base):
+    __tablename__ = "travel_plans"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False)
+    
+    # Plan details
+    title = Column(String(255), nullable=False)
+    description = Column(Text)
+    destinations = Column(JSONB, default=[])
+    start_date = Column(Date)
+    end_date = Column(Date)
+    
+    # Budget and travelers
+    budget_total = Column(DECIMAL(12, 2))
+    budget_currency = Column(String(3), default='USD')
+    traveler_count = Column(Integer, default=1)
+    traveler_details = Column(JSONB, default={})
+    
+    # Preferences and generated data
+    preferences = Column(JSONB, default={})
+    constraints = Column(JSONB, default={})
+    plan_data = Column(JSONB, default={})
+    agent_results = Column(JSONB, default={})
+    
+    # Version control
+    version = Column(Integer, default=1)
+    parent_plan_id = Column(UUID(as_uuid=True), ForeignKey('travel_plans.id'))
+    is_active = Column(Boolean, default=True)
+    
+    # Status and metrics
+    status = Column(String(50), default='draft')
+    completion_percentage = Column(Integer, default=0)
+    total_cost_usd = Column(DECIMAL(10, 6), default=0.00)
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    completed_at = Column(DateTime(timezone=True))
+    
+    def __repr__(self):
+        return f"<TravelPlan {self.title}>"
 ```
 
-## Serializers
-
-### Authentication Serializers
+### Pydantic Schemas
 
 ```python
-# authentication/serializers.py
-from rest_framework import serializers
-from django.contrib.auth import authenticate
-from .models import CustomUser
+# app/models/schemas.py
+from pydantic import BaseModel, EmailStr, validator
+from typing import Optional, List, Dict, Any
+from datetime import date, datetime
+from enum import Enum
 
-class UserRegistrationSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, min_length=8)
-    password_confirm = serializers.CharField(write_only=True)
-    
-    class Meta:
-        model = CustomUser
-        fields = ('email', 'username', 'first_name', 'last_name', 'password', 'password_confirm')
-    
-    def validate(self, data):
-        if data['password'] != data['password_confirm']:
-            raise serializers.ValidationError("Passwords don't match")
-        return data
-    
-    def create(self, validated_data):
-        validated_data.pop('password_confirm')
-        user = CustomUser.objects.create_user(**validated_data)
-        return user
+class SubscriptionTier(str, Enum):
+    FREE = "free"
+    BASIC = "basic"
+    PREMIUM = "premium"
 
-class UserLoginSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    password = serializers.CharField()
+class PlanStatus(str, Enum):
+    DRAFT = "draft"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    ERROR = "error"
+    CANCELLED = "cancelled"
+
+# User Schemas
+class UserBase(BaseModel):
+    email: EmailStr
+    username: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    phone_number: Optional[str] = None
+
+class UserCreate(UserBase):
+    password: str
+    password_confirm: str
     
-    def validate(self, data):
-        email = data.get('email')
-        password = data.get('password')
-        
-        if email and password:
-            user = authenticate(username=email, password=password)
-            if not user:
-                raise serializers.ValidationError('Invalid credentials')
-            if not user.is_active:
-                raise serializers.ValidationError('User account is disabled')
-            data['user'] = user
-        return data
+    @validator('password_confirm')
+    def passwords_match(cls, v, values):
+        if 'password' in values and v != values['password']:
+            raise ValueError('Passwords do not match')
+        return v
+
+class UserResponse(UserBase):
+    id: str
+    subscription_tier: SubscriptionTier
+    is_active: bool
+    is_verified: bool
+    created_at: datetime
+    last_login: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+class TokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int
+
+# Travel Plan Schemas
+class PlanBase(BaseModel):
+    title: str
+    description: Optional[str] = None
+    destinations: List[str] = []
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    budget_total: Optional[float] = None
+    budget_currency: str = "USD"
+    traveler_count: int = 1
+    preferences: Dict[str, Any] = {}
+    constraints: Dict[str, Any] = {}
+
+class PlanCreate(PlanBase):
+    pass
+
+class PlanUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    destinations: Optional[List[str]] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    budget_total: Optional[float] = None
+    traveler_count: Optional[int] = None
+    preferences: Optional[Dict[str, Any]] = None
+    constraints: Optional[Dict[str, Any]] = None
+
+class PlanResponse(PlanBase):
+    id: str
+    user_id: str
+    version: int
+    status: PlanStatus
+    completion_percentage: int
+    total_cost_usd: float
+    plan_data: Dict[str, Any] = {}
+    agent_results: Dict[str, Any] = {}
+    created_at: datetime
+    updated_at: datetime
+    completed_at: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True
+
+# Agent Schemas
+class AgentTaskRequest(BaseModel):
+    agent_type: str
+    task_data: Dict[str, Any]
+    context_data: Optional[Dict[str, Any]] = {}
+    priority: int = 5
+
+class AgentTaskResponse(BaseModel):
+    task_id: str
+    agent_type: str
+    status: str
+    result_data: Optional[Dict[str, Any]] = None
+    error_data: Optional[Dict[str, Any]] = None
+    execution_time_ms: Optional[int] = None
+    cost_usd: Optional[float] = None
+    created_at: datetime
 ```
 
-### Plan Serializers
+## 🔐 Authentication & Security
+
+### FastAPI Security Implementation
 
 ```python
-# plans/serializers.py
-from rest_framework import serializers
-from .models import Plan
+# app/core/security.py
+from datetime import datetime, timedelta
+from typing import Optional
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from app.core.config import settings
+from app.models.database import User
+from app.services.user_service import UserService
 
-class PlanSerializer(serializers.ModelSerializer):
-    user = serializers.StringRelatedField(read_only=True)
+# Password hashing
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# JWT bearer scheme
+security = HTTPBearer()
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     
-    class Meta:
-        model = Plan
-        fields = '__all__'
-        read_only_fields = ('user', 'created_at', 'updated_at')
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    return encoded_jwt
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_password_hash(password: str) -> str:
+    return pwd_context.hash(password)
+
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> User:
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
     
-    def validate(self, data):
-        if data.get('start_date') and data.get('end_date'):
-            if data['start_date'] > data['end_date']:
-                raise serializers.ValidationError("Start date must be before end date")
-        return data
+    try:
+        payload = jwt.decode(credentials.credentials, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+    
+    user = await UserService.get_user_by_id(user_id)
+    if user is None:
+        raise credentials_exception
+    
+    return user
 ```
 
-## Views
+## 📊 Rate Limiting & Middleware
 
-### Authentication Views
-
-```python
-# authentication/views.py
-from rest_framework import status, generics
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from rest_framework_simplejwt.tokens import RefreshToken
-from .serializers import UserRegistrationSerializer, UserLoginSerializer
-
-class SignupView(generics.CreateAPIView):
-    serializer_class = UserRegistrationSerializer
-    
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
-        
-        # Generate JWT tokens
-        refresh = RefreshToken.for_user(user)
-        
-        return Response({
-            'user': {
-                'id': user.id,
-                'email': user.email,
-                'username': user.username,
-            },
-            'tokens': {
-                'refresh': str(refresh),
-                'access': str(refresh.access_token),
-            }
-        }, status=status.HTTP_201_CREATED)
-
-class LoginView(generics.GenericAPIView):
-    serializer_class = UserLoginSerializer
-    
-    def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.validated_data['user']
-        
-        refresh = RefreshToken.for_user(user)
-        
-        return Response({
-            'user': {
-                'id': user.id,
-                'email': user.email,
-                'username': user.username,
-            },
-            'tokens': {
-                'refresh': str(refresh),
-                'access': str(refresh.access_token),
-            }
-        })
-```
-
-### Plan Views
+### FastAPI Rate Limiting
 
 ```python
-# plans/views.py
-from rest_framework import generics, permissions
-from rest_framework.response import Response
-from .models import Plan
-from .serializers import PlanSerializer
-
-class PlanListCreateView(generics.ListCreateAPIView):
-    serializer_class = PlanSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def get_queryset(self):
-        return Plan.objects.filter(user=self.request.user)
-    
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
-
-class PlanDetailView(generics.RetrieveUpdateDestroyAPIView):
-    serializer_class = PlanSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def get_queryset(self):
-        return Plan.objects.filter(user=self.request.user)
-```
-
-## Rate Limiting
-
-### Redis-based Rate Limiting
-
-```python
-# core/middleware.py
+# app/api/middleware.py
+import time
 import redis
-from django.http import JsonResponse
-from django.utils.deprecation import MiddlewareMixin
+from fastapi import Request, HTTPException, status
+from fastapi.middleware.base import BaseHTTPMiddleware
+from app.core.config import settings
 
-class RateLimitMiddleware(MiddlewareMixin):
-    def __init__(self, get_response):
-        self.get_response = get_response
-        self.redis_client = redis.Redis(host='localhost', port=6379, db=0)
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    def __init__(self, app, redis_url: str = "redis://localhost:6379"):
+        super().__init__(app)
+        self.redis_client = redis.from_url(redis_url)
     
-    def process_request(self, request):
-        if request.user.is_authenticated:
-            return None  # No rate limiting for authenticated users
+    async def dispatch(self, request: Request, call_next):
+        # Skip rate limiting for authenticated users
+        if hasattr(request.state, 'user') and request.state.user:
+            return await call_next(request)
         
-        ip = self.get_client_ip(request)
-        key = f"rate_limit:{ip}"
+        # Rate limit by IP for anonymous users
+        client_ip = self.get_client_ip(request)
+        key = f"rate_limit:{client_ip}"
         
-        current_count = self.redis_client.get(key)
-        if current_count is None:
-            self.redis_client.setex(key, 30 * 24 * 60 * 60, 1)  # 30 days
+        current = self.redis_client.get(key)
+        if current is None:
+            self.redis_client.setex(key, 3600, 1)  # 1 hour window
         else:
-            current_count = int(current_count)
-            if current_count >= 10:  # 10 requests per month
-                return JsonResponse({
-                    'error': 'Rate limit exceeded. Please sign up for continued access.'
-                }, status=429)
+            current = int(current)
+            if current >= 100:  # 100 requests per hour for anonymous users
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail="Rate limit exceeded. Please sign up for higher limits."
+                )
             self.redis_client.incr(key)
+        
+        response = await call_next(request)
+        return response
     
-    def get_client_ip(self, request):
-        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-        if x_forwarded_for:
-            ip = x_forwarded_for.split(',')[0]
-        else:
-            ip = request.META.get('REMOTE_ADDR')
-        return ip
+    def get_client_ip(self, request: Request) -> str:
+        forwarded = request.headers.get("X-Forwarded-For")
+        if forwarded:
+            return forwarded.split(",")[0].strip()
+        return request.client.host
 ```
 
-## Security Considerations
+## 🧪 Testing Framework
 
-### Settings Configuration
+### FastAPI Testing Setup
 
 ```python
-# settings.py
-import os
-from datetime import timedelta
+# tests/conftest.py
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from app.main import app
+from app.core.database import get_db
+from app.models.database import Base
 
-# JWT Configuration
-SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
-    'ROTATE_REFRESH_TOKENS': True,
-    'BLACKLIST_AFTER_ROTATION': True,
-}
+# Test database setup
+SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
+engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Password Validation
-AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-        'OPTIONS': {'min_length': 8}
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
-]
+@pytest.fixture
+def db():
+    Base.metadata.create_all(bind=engine)
+    db = TestingSessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+        Base.metadata.drop_all(bind=engine)
 
-# CORS Configuration
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",  # React development server
-    "https://your-domain.com",  # Production frontend
-]
+@pytest.fixture
+def client(db):
+    def override_get_db():
+        try:
+            yield db
+        finally:
+            db.close()
+    
+    app.dependency_overrides[get_db] = override_get_db
+    yield TestClient(app)
+    app.dependency_overrides.clear()
 
-# Security Headers
-SECURE_BROWSER_XSS_FILTER = True
-SECURE_CONTENT_TYPE_NOSNIFF = True
-X_FRAME_OPTIONS = 'DENY'
+# tests/test_auth.py
+def test_user_registration(client):
+    response = client.post("/auth/signup", json={
+        "email": "test@example.com",
+        "username": "testuser",
+        "password": "testpass123",
+        "password_confirm": "testpass123"
+    })
+    assert response.status_code == 201
+    assert "access_token" in response.json()
+
+def test_user_login(client):
+    # First register a user
+    client.post("/auth/signup", json={
+        "email": "test@example.com",
+        "username": "testuser", 
+        "password": "testpass123",
+        "password_confirm": "testpass123"
+    })
+    
+    # Then login
+    response = client.post("/auth/login", json={
+        "email": "test@example.com",
+        "password": "testpass123"
+    })
+    assert response.status_code == 200
+    assert "access_token" in response.json()
 ```
 
-## Social OAuth Integration
+## 🎯 Implementation Roadmap
 
-### Google OAuth Setup
+### Phase 1: Core Infrastructure (Week 1-2)
+- [ ] Set up FastAPI project structure
+- [ ] Configure SQLAlchemy with PostgreSQL
+- [ ] Implement Pydantic schemas and models
+- [ ] Set up Alembic database migrations
+- [ ] Configure Redis connection and Celery
+- [ ] Implement basic health checks
 
-```python
-# Install: pip install social-auth-app-django
+### Phase 2: Authentication & User Management (Week 2-3)
+- [ ] Implement JWT authentication with FastAPI Security
+- [ ] Create user registration and login endpoints
+- [ ] Add password hashing and validation
+- [ ] Implement user profile management
+- [ ] Set up OAuth2 social authentication
+- [ ] Add rate limiting middleware
 
-# settings.py
-INSTALLED_APPS = [
-    # ... other apps
-    'social_django',
-]
+### Phase 3: Agent System (Week 3-5)
+- [ ] Implement base agent class with provider abstraction
+- [ ] Create individual agent implementations
+- [ ] Set up LangGraph workflow orchestration
+- [ ] Implement Celery task queue for agents
+- [ ] Add agent communication and state management
+- [ ] Integrate LangSmith monitoring
 
-AUTHENTICATION_BACKENDS = [
-    'social_core.backends.google.GoogleOAuth2',
-    'django.contrib.auth.backends.ModelBackend',
-]
+### Phase 4: Travel Plan Management (Week 4-6)
+- [ ] Implement travel plan CRUD operations
+- [ ] Add plan versioning and history
+- [ ] Integrate Qdrant vector database
+- [ ] Implement plan similarity search
+- [ ] Add real-time WebSocket updates
+- [ ] Create plan sharing functionality
 
-SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = os.getenv('GOOGLE_OAUTH2_KEY')
-SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = os.getenv('GOOGLE_OAUTH2_SECRET')
-```
+### Phase 5: Cost Tracking & Optimization (Week 5-7)
+- [ ] Implement comprehensive cost tracking
+- [ ] Add cost optimization suggestions
+- [ ] Create cost alert system
+- [ ] Build cost analytics dashboard
+- [ ] Implement usage limits by subscription tier
+- [ ] Add billing and payment integration
 
-## Testing
+### Phase 6: Monitoring & Deployment (Week 6-8)
+- [ ] Set up Prometheus metrics collection
+- [ ] Configure Grafana dashboards
+- [ ] Implement comprehensive logging
+- [ ] Create ARM64 optimized Docker containers
+- [ ] Deploy to Oracle Cloud infrastructure
+- [ ] Set up CI/CD pipeline
 
-### Unit Tests Example
+### Phase 7: Testing & Optimization (Week 7-9)
+- [ ] Write comprehensive unit tests
+- [ ] Implement integration tests
+- [ ] Add load testing for agent system
+- [ ] Performance optimization and tuning
+- [ ] Security audit and hardening
+- [ ] Documentation completion
 
-```python
-# tests/test_authentication.py
-from django.test import TestCase
-from django.contrib.auth import get_user_model
-from rest_framework.test import APITestCase
-
-User = get_user_model()
-
-class AuthenticationTestCase(APITestCase):
-    def test_user_registration(self):
-        data = {
-            'email': 'test@example.com',
-            'username': 'testuser',
-            'password': 'testpass123',
-            'password_confirm': 'testpass123'
-        }
-        response = self.client.post('/api/auth/signup/', data)
-        self.assertEqual(response.status_code, 201)
-        self.assertTrue(User.objects.filter(email='test@example.com').exists())
-```
-
-## TODO: Implementation Tasks
-
-- [ ] Set up Django project with DRF
-- [ ] Configure custom user model
-- [ ] Implement JWT authentication
-- [ ] Create plan CRUD operations
-- [ ] Add input validation and serializers
-- [ ] Implement rate limiting
-- [ ] Set up social OAuth
-- [ ] Add comprehensive error handling
-- [ ] Write unit and integration tests
-- [ ] Configure logging and monitoring
-- [ ] Set up database migrations
-- [ ] Implement permissions and authorization
+### Phase 8: Production Launch (Week 9-10)
+- [ ] Production deployment and monitoring
+- [ ] User acceptance testing
+- [ ] Performance monitoring and optimization
+- [ ] Bug fixes and stability improvements
+- [ ] Feature enhancement based on feedback
+- [ ] Scale planning and optimization

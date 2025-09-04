@@ -27,7 +27,7 @@ This guide provides a streamlined implementation roadmap for the multi-agent Tra
 - Native async/await for concurrent agent execution
 - Automatic API documentation and type safety
 - LangGraph provides purpose-built multi-agent state management
-- Superior performance compared to Django for our use case
+- Superior performance compared to traditional frameworks for our use case
 
 📝 **Why PostgreSQL + Qdrant?**
 - PostgreSQL: Complete audit trail, version control, cost tracking

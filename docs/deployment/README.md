@@ -312,7 +312,7 @@ ALLOWED_HOSTS = [
 # Database configuration
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
+        'ENGINE': 'postgresql+asyncpg',
         'NAME': os.getenv('DB_NAME'),
         'USER': os.getenv('DB_USER'),
         'PASSWORD': os.getenv('DB_PASSWORD'),
@@ -327,10 +327,10 @@ DATABASES = {
 # Redis configuration
 CACHES = {
     'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
+        'BACKEND': 'redis.asyncio.Redis',
         'LOCATION': os.getenv('REDIS_URL'),
         'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'URL': 'redis://localhost:6379/1',
         }
     }
 }
@@ -367,7 +367,7 @@ LOGGING = {
         'file': {
             'level': 'INFO',
             'class': 'logging.FileHandler',
-            'filename': '/var/log/travel_planner/django.log',
+            'filename': '/var/log/travel_planner/fastapi.log',
             'formatter': 'verbose',
         },
         'console': {
@@ -479,7 +479,7 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    # Django admin (optional, secure access)
+    # FastAPI admin interface (optional, secure access)
     location /admin/ {
         allow 192.168.1.0/24;  # Your IP range
         deny all;
@@ -572,9 +572,10 @@ sudo systemctl restart nginx
 
 ```python
 # monitoring/health_check.py
-from django.http import JsonResponse
-from django.db import connection
-from django.core.cache import cache
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
+import asyncpg
+import redis.asyncio as redis
 import redis
 
 def health_check(request):
@@ -702,7 +703,7 @@ echo "Deployment completed successfully!"
 ```ini
 # /etc/systemd/system/travel-planner.service
 [Unit]
-Description=Travel Planner Django Application
+Description=Travel Planner FastAPI Application
 After=network.target
 
 [Service]

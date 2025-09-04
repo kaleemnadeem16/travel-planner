@@ -16,7 +16,7 @@ This is the central documentation hub for the Travel Planner application. The do
 
 ### ⚙️ [Backend](./backend/README.md)
 **Purpose**: Python backend development guide and API specifications  
-**Contents**: Django/Flask setup, API endpoints, business logic, middleware, background tasks  
+**Contents**: FastAPI + LangGraph setup, API endpoints, business logic, middleware, background tasks  
 **Target Audience**: Backend developers, API developers
 
 ### 🗄️ [Database](./database/README.md)

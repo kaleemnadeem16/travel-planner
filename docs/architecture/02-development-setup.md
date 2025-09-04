@@ -1,6 +1,6 @@
 # Development Environment Setup
 
-This guide provides comprehensive instructions for setting up the Travel Planner development environment. Multiple setup options are provided to accommodate different preferences and system configurations.
+This guide provides comprehensive instructions for setting up the Travel Planner development environment using FastAPI + LangGraph architecture.
 
 ## 🔧 Prerequisites
 
@@ -24,758 +24,433 @@ This guide provides comprehensive instructions for setting up the Travel Planner
 
 ```bash
 # Verify installations
-git --version
-node --version
-npm --version
-python --version
-docker --version
-psql --version
+git --version          # Should show git version
+node --version         # Should show v18.0+
+python --version       # Should show 3.9+
+docker --version       # Should show 20.10+
 ```
 
-Expected output should show version numbers for all tools.
+## 🚀 Quick Setup Options
 
-## 🚀 Setup Options
+### Option 1: Docker Development (Recommended)
 
-### Option 1: Docker Development Environment (Recommended)
+**Best for**: Complete isolation, consistent environment across team members
 
-This is the fastest way to get started with minimal system configuration.
-
-#### Step 1: Clone Repository
 ```bash
-git clone https://github.com/your-username/travel-planner.git
+# Clone the repository
+git clone https://github.com/kaleemnadeem16/travel-planner.git
 cd travel-planner
-```
 
-#### Step 2: Environment Configuration
-```bash
-# Copy environment template
-cp .env.example .env.development
-
-# Edit environment variables
-# Windows
-notepad .env.development
-# macOS/Linux
-nano .env.development
-```
-
-#### Step 3: Docker Setup
-```bash
-# Build and start all services
-docker-compose -f docker-compose.dev.yml up --build
-
-# Run in background
+# Start all services with Docker Compose
 docker-compose -f docker-compose.dev.yml up -d
 
-# View logs
-docker-compose -f docker-compose.dev.yml logs -f
+# Access the application
+# Frontend: http://localhost:3000
+# Backend API: http://localhost:8000
+# API Docs: http://localhost:8000/docs
+# PostgreSQL: localhost:5432
+# Redis: localhost:6379
+# Qdrant: http://localhost:6333
 ```
 
-#### Step 4: Database Setup
+### Option 2: Local Development
+
+**Best for**: Direct debugging, faster development cycles
+
 ```bash
-# Run migrations
-docker-compose exec backend python manage.py migrate
+# Clone and setup
+git clone https://github.com/kaleemnadeem16/travel-planner.git
+cd travel-planner
 
-# Create superuser
-docker-compose exec backend python manage.py createsuperuser
-
-# Load sample data (optional)
-docker-compose exec backend python manage.py loaddata fixtures/sample_data.json
-```
-
-#### Step 5: Verify Installation
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:8000/api
-- Django Admin: http://localhost:8000/admin
-- Database: localhost:5432
-
-### Option 2: Native Development Environment
-
-For developers who prefer running services directly on their system.
-
-#### Step 1: Python Environment Setup
-```bash
-# Create virtual environment
-python -m venv venv
-
-# Activate virtual environment
-# Windows
-venv\Scripts\activate
-# macOS/Linux
-source venv/bin/activate
-
-# Upgrade pip
-pip install --upgrade pip
-
-# Install dependencies
+# Backend setup
 cd backend
-pip install -r requirements.dev.txt
-```
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
 
-#### Step 2: Node.js Environment Setup
-```bash
-cd frontend
+# Frontend setup
+cd ../frontend
 npm install
 
-# Install global tools (optional)
-npm install -g @storybook/cli
-npm install -g eslint
-```
+# Database setup (using Docker)
+docker run -d --name travel-db -p 5432:5432 -e POSTGRES_PASSWORD=devpass postgres:15
+docker run -d --name travel-qdrant -p 6333:6333 qdrant/qdrant
+docker run -d --name travel-redis -p 6379:6379 redis:7-alpine
 
-#### Step 3: Database Setup
-```bash
-# Install PostgreSQL (if not already installed)
-# Windows: Download from postgresql.org
-# macOS: brew install postgresql
-# Ubuntu: sudo apt install postgresql postgresql-contrib
-
-# Create database
-sudo -u postgres psql
-CREATE DATABASE travel_planner_dev;
-CREATE USER travel_dev WITH ENCRYPTED PASSWORD 'dev_password';
-GRANT ALL PRIVILEGES ON DATABASE travel_planner_dev TO travel_dev;
-ALTER USER travel_dev CREATEDB;
-\q
-```
-
-#### Step 4: Redis Setup (Optional)
-```bash
-# Install Redis
-# Windows: Use Redis for Windows or WSL
-# macOS: brew install redis
-# Ubuntu: sudo apt install redis-server
-
-# Start Redis
-# macOS/Linux: redis-server
-# Ubuntu service: sudo systemctl start redis-server
-```
-
-#### Step 5: Environment Configuration
-```bash
-# Backend environment
-cd backend
-cp .env.example .env.development
-
-# Edit .env.development with your database credentials
-DATABASE_URL=postgresql://travel_dev:dev_password@localhost:5432/travel_planner_dev
-REDIS_URL=redis://localhost:6379/0
-```
-
-#### Step 6: Run Development Servers
-```bash
+# Start development servers
 # Terminal 1: Backend
-cd backend
-python manage.py migrate
-python manage.py runserver
+cd backend && uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 # Terminal 2: Frontend
-cd frontend
-npm start
+cd frontend && npm run dev
 
-# Terminal 3: Redis (if running locally)
-redis-server
+# Terminal 3: Celery Worker
+cd backend && celery -A travel_planner.celery worker --loglevel=info
 ```
 
-### Option 3: VS Code Dev Containers
+## 📁 Project Structure
 
-For VS Code users who want a consistent development environment.
-
-#### Step 1: Install Extensions
-```json
-{
-  "recommendations": [
-    "ms-vscode-remote.remote-containers",
-    "ms-python.python",
-    "bradlc.vscode-tailwindcss",
-    "esbenp.prettier-vscode",
-    "ms-vscode.vscode-typescript-next"
-  ]
-}
+```
+travel-planner/
+├── backend/                 # FastAPI + LangGraph backend
+│   ├── app/
+│   │   ├── agents/         # LangGraph agent definitions
+│   │   ├── api/            # FastAPI routes
+│   │   ├── core/           # Configuration and utilities
+│   │   ├── models/         # SQLAlchemy models
+│   │   ├── schemas/        # Pydantic schemas
+│   │   └── services/       # Business logic
+│   ├── tests/              # Backend tests
+│   ├── requirements.txt    # Python dependencies
+│   └── main.py            # FastAPI application entry point
+├── frontend/               # React frontend
+│   ├── src/
+│   │   ├── components/    # React components
+│   │   ├── pages/         # Page components
+│   │   ├── hooks/         # Custom React hooks
+│   │   ├── services/      # API clients
+│   │   └── utils/         # Utility functions
+│   ├── package.json       # Node.js dependencies
+│   └── vite.config.js     # Vite configuration
+├── docs/                  # Documentation
+├── docker-compose.yml     # Production Docker setup
+├── docker-compose.dev.yml # Development Docker setup
+└── README.md             # Project overview
 ```
 
-#### Step 2: Dev Container Configuration
-The project includes `.devcontainer/devcontainer.json`:
+## ⚙️ Environment Configuration
 
-```json
-{
-  "name": "Travel Planner Dev",
-  "dockerComposeFile": ["../docker-compose.dev.yml"],
-  "service": "backend",
-  "workspaceFolder": "/workspace",
-  "settings": {
-    "python.defaultInterpreterPath": "/usr/local/bin/python",
-    "python.linting.enabled": true,
-    "python.linting.pylintEnabled": true
-  },
-  "extensions": [
-    "ms-python.python",
-    "ms-python.vscode-pylance",
-    "bradlc.vscode-tailwindcss"
-  ],
-  "forwardPorts": [3000, 8000, 5432, 6379],
-  "postCreateCommand": "pip install -r requirements.dev.txt && python manage.py migrate"
-}
-```
+### Backend Environment Variables (.env)
 
-#### Step 3: Open in Container
-1. Open VS Code
-2. Install Remote-Containers extension
-3. Press `Ctrl+Shift+P` → "Remote-Containers: Open Folder in Container"
-4. Select the project folder
-
-## ⚙️ IDE Configuration
-
-### VS Code Setup
-
-#### Recommended Extensions
-```json
-{
-  "recommendations": [
-    "ms-python.python",
-    "ms-python.vscode-pylance",
-    "bradlc.vscode-tailwindcss",
-    "esbenp.prettier-vscode",
-    "ms-vscode.vscode-typescript-next",
-    "ms-vscode-remote.remote-containers",
-    "ms-vscode.vscode-json",
-    "redhat.vscode-yaml",
-    "ms-azuretools.vscode-docker"
-  ]
-}
-```
-
-#### Workspace Settings
-```json
-{
-  "python.defaultInterpreterPath": "./backend/venv/bin/python",
-  "python.linting.enabled": true,
-  "python.linting.pylintEnabled": true,
-  "python.linting.flake8Enabled": true,
-  "python.formatting.provider": "black",
-  "typescript.preferences.quoteStyle": "single",
-  "editor.formatOnSave": true,
-  "editor.codeActionsOnSave": {
-    "source.organizeImports": true
-  },
-  "files.exclude": {
-    "**/__pycache__": true,
-    "**/node_modules": true,
-    "**/.git": true
-  }
-}
-```
-
-#### Debug Configuration
-```json
-{
-  "version": "0.2.0",
-  "configurations": [
-    {
-      "name": "Django",
-      "type": "python",
-      "request": "launch",
-      "program": "${workspaceFolder}/backend/manage.py",
-      "args": ["runserver"],
-      "django": true,
-      "cwd": "${workspaceFolder}/backend"
-    },
-    {
-      "name": "React",
-      "type": "node",
-      "request": "launch",
-      "cwd": "${workspaceFolder}/frontend",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["start"]
-    }
-  ]
-}
-```
-
-### PyCharm Setup
-
-#### Project Configuration
-1. Open PyCharm
-2. File → Open → Select project root directory
-3. Configure Python interpreter:
-   - File → Settings → Project → Python Interpreter
-   - Select virtual environment from `backend/venv`
-
-#### Run Configurations
-```xml
-<!-- Django Server -->
-<configuration name="Django Server" type="Python">
-  <module name="travel-planner" />
-  <option name="INTERPRETER_OPTIONS" value="" />
-  <option name="PARENT_ENVS" value="true" />
-  <envs>
-    <env name="DJANGO_SETTINGS_MODULE" value="travel_planner.settings.development" />
-  </envs>
-  <option name="SDK_HOME" value="$PROJECT_DIR$/backend/venv/bin/python" />
-  <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/backend" />
-  <option name="IS_MODULE_SDK" value="false" />
-  <option name="ADD_CONTENT_ROOTS" value="true" />
-  <option name="ADD_SOURCE_ROOTS" value="true" />
-  <option name="SCRIPT_NAME" value="manage.py" />
-  <option name="PARAMETERS" value="runserver" />
-</configuration>
-```
-
-## 🔑 Environment Variables
-
-### Development Environment Variables
-
-#### Backend (.env.development)
 ```bash
-# Django Settings
-DEBUG=True
-SECRET_KEY=your-development-secret-key
-DJANGO_SETTINGS_MODULE=travel_planner.settings.development
+# Core Application
+ENVIRONMENT=development
+DEBUG=true
+SECRET_KEY=your-super-secret-key-here
+ALLOWED_HOSTS=localhost,127.0.0.1
 
 # Database Configuration
-DATABASE_URL=postgresql://travel_dev:dev_password@localhost:5432/travel_planner_dev
-# For Docker: postgresql://travel_user:travel_password@db:5432/travel_planner
-
-# Redis Configuration
+DATABASE_URL=postgresql+asyncpg://postgres:devpass@localhost:5432/travel_planner
 REDIS_URL=redis://localhost:6379/0
-# For Docker: redis://redis:6379/0
 
-# External API Keys (Development)
-OPENWEATHER_API_KEY=your-openweather-dev-key
-OPENROUTESERVICE_API_KEY=your-openrouteservice-dev-key
-FOURSQUARE_API_KEY=your-foursquare-dev-key
+# Vector Database
+QDRANT_URL=http://localhost:6333
+QDRANT_API_KEY=your-qdrant-api-key
 
-# OAuth Configuration (Development)
-GOOGLE_OAUTH2_CLIENT_ID=your-google-dev-client-id
-GOOGLE_OAUTH2_CLIENT_SECRET=your-google-dev-client-secret
-
-# Email Configuration (Development)
-EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
-EMAIL_HOST=smtp.mailtrap.io
-EMAIL_PORT=2525
-EMAIL_HOST_USER=your-mailtrap-user
-EMAIL_HOST_PASSWORD=your-mailtrap-password
-
-# Logging
-LOG_LEVEL=DEBUG
-
-# CORS Settings
-CORS_ALLOW_ALL_ORIGINS=True
-```
-
-#### Frontend (.env.development)
-```bash
-# API Configuration
-REACT_APP_API_URL=http://localhost:8000/api
-REACT_APP_WS_URL=ws://localhost:8000/ws
+# AI/ML Services
+OPENAI_API_KEY=your-openai-api-key
+ANTHROPIC_API_KEY=your-anthropic-api-key
 
 # External Services
-REACT_APP_MAPBOX_TOKEN=your-mapbox-dev-token
-REACT_APP_GOOGLE_MAPS_API_KEY=your-google-maps-dev-key
+AMADEUS_API_KEY=your-amadeus-api-key
+AMADEUS_API_SECRET=your-amadeus-api-secret
+GOOGLE_MAPS_API_KEY=your-google-maps-api-key
+OPENWEATHER_API_KEY=your-openweather-api-key
 
-# OAuth Configuration
-REACT_APP_GOOGLE_CLIENT_ID=your-google-dev-client-id
+# Monitoring
+LANGSMITH_API_KEY=your-langsmith-api-key
+LANGSMITH_PROJECT=travel-planner-dev
+
+# Security
+JWT_SECRET_KEY=your-jwt-secret-key
+JWT_ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+# Celery Configuration
+CELERY_BROKER_URL=redis://localhost:6379/1
+CELERY_RESULT_BACKEND=redis://localhost:6379/2
+
+# CORS Settings
+FRONTEND_URL=http://localhost:3000
+```
+
+### Frontend Environment Variables (.env.local)
+
+```bash
+# API Configuration
+VITE_API_BASE_URL=http://localhost:8000
+VITE_WS_BASE_URL=ws://localhost:8000
 
 # Feature Flags
-REACT_APP_ENABLE_PWA=true
-REACT_APP_ENABLE_OFFLINE=true
-REACT_APP_ENABLE_ANALYTICS=false
+VITE_ENABLE_DEBUG=true
+VITE_ENABLE_MOCK_DATA=false
 
-# Development Settings
-REACT_APP_LOG_LEVEL=debug
-GENERATE_SOURCEMAP=true
+# External Services
+VITE_GOOGLE_MAPS_API_KEY=your-google-maps-api-key
 ```
 
-### API Key Setup Guide
+## 🛠️ Development Commands
 
-#### OpenWeatherMap API
-1. Visit https://openweathermap.org/api
-2. Sign up for free account
-3. Generate API key (free tier: 1000 calls/day)
-4. Add to `.env.development`
+### Backend Commands
 
-#### OpenRouteService API
-1. Visit https://openrouteservice.org/
-2. Create free account
-3. Generate API key (free tier: 2000 requests/day)
-4. Add to `.env.development`
-
-#### Google OAuth Setup
-1. Visit Google Cloud Console
-2. Create new project or select existing
-3. Enable Google+ API
-4. Create OAuth 2.0 credentials
-5. Add authorized origins and redirect URIs
-6. Add client ID and secret to environment
-
-## 🐳 Docker Configuration
-
-### Development Docker Compose
-
-```yaml
-# docker-compose.dev.yml
-version: '3.8'
-
-services:
-  db:
-    image: postgres:15
-    environment:
-      POSTGRES_DB: travel_planner
-      POSTGRES_USER: travel_user
-      POSTGRES_PASSWORD: travel_password
-    volumes:
-      - postgres_dev_data:/var/lib/postgresql/data
-      - ./scripts/init-dev-db.sql:/docker-entrypoint-initdb.d/init-db.sql
-    ports:
-      - "5432:5432"
-    networks:
-      - travel-network
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    command: redis-server --appendonly yes
-    volumes:
-      - redis_dev_data:/data
-    networks:
-      - travel-network
-
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile.dev
-    command: python manage.py runserver 0.0.0.0:8000
-    volumes:
-      - ./backend:/app
-      - backend_static:/app/staticfiles
-    ports:
-      - "8000:8000"
-    environment:
-      - DEBUG=True
-      - DATABASE_URL=postgresql://travel_user:travel_password@db:5432/travel_planner
-      - REDIS_URL=redis://redis:6379/0
-    depends_on:
-      - db
-      - redis
-    networks:
-      - travel-network
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile.dev
-    command: npm start
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    ports:
-      - "3000:3000"
-    environment:
-      - REACT_APP_API_URL=http://localhost:8000/api
-      - CHOKIDAR_USEPOLLING=true
-    depends_on:
-      - backend
-    networks:
-      - travel-network
-
-volumes:
-  postgres_dev_data:
-  redis_dev_data:
-  backend_static:
-
-networks:
-  travel-network:
-    driver: bridge
-```
-
-### Development Dockerfiles
-
-#### Backend Dockerfile (Dockerfile.dev)
-```dockerfile
-FROM python:3.11-slim
-
-WORKDIR /app
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    postgresql-client \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Python dependencies
-COPY requirements.dev.txt .
-RUN pip install --no-cache-dir -r requirements.dev.txt
-
-# Copy application code
-COPY . .
-
-# Create non-root user
-RUN adduser --disabled-password --gecos '' appuser
-RUN chown -R appuser:appuser /app
-USER appuser
-
-# Expose port
-EXPOSE 8000
-
-# Development command (will be overridden in compose)
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
-```
-
-#### Frontend Dockerfile (Dockerfile.dev)
-```dockerfile
-FROM node:18-alpine
-
-WORKDIR /app
-
-# Install dependencies
-COPY package*.json ./
-RUN npm ci
-
-# Copy source code
-COPY . .
-
-# Expose port
-EXPOSE 3000
-
-# Development command (will be overridden in compose)
-CMD ["npm", "start"]
-```
-
-## 🧪 Testing Setup
-
-### Backend Testing
 ```bash
-# Install test dependencies
-pip install -r requirements.test.txt
+# Install dependencies
+pip install -r requirements.txt
+
+# Run development server
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 # Run tests
-python manage.py test
+pytest tests/ -v
 
-# Run with coverage
-coverage run --source='.' manage.py test
-coverage report
-coverage html
-```
-
-### Frontend Testing
-```bash
-# Run unit tests
-npm test
-
-# Run with coverage
-npm test -- --coverage
-
-# Run E2E tests
-npm run test:e2e
-```
-
-### Test Database Setup
-```python
-# settings/test.py
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': ':memory:',
-    }
-}
-
-# Disable migrations for faster tests
-class DisableMigrations:
-    def __contains__(self, item):
-        return True
-    
-    def __getitem__(self, item):
-        return None
-
-MIGRATION_MODULES = DisableMigrations()
-```
-
-## 🛠️ Development Tools
-
-### Code Quality Tools
-
-#### Python (Backend)
-```bash
-# Install development tools
-pip install black isort flake8 mypy pylint
-
-# Format code
-black .
-isort .
-
-# Lint code
-flake8 .
-pylint **/*.py
+# Code formatting
+black app/
+isort app/
 
 # Type checking
-mypy .
+mypy app/
+
+# Database migrations
+alembic upgrade head
+alembic revision --autogenerate -m "Migration message"
+
+# Start Celery worker
+celery -A travel_planner.celery worker --loglevel=info
+
+# Start Celery beat scheduler
+celery -A travel_planner.celery beat --loglevel=info
 ```
 
-#### JavaScript/TypeScript (Frontend)
-```bash
-# Install development tools
-npm install --save-dev eslint prettier @typescript-eslint/parser
+### Frontend Commands
 
-# Format code
+```bash
+# Install dependencies
+npm install
+
+# Run development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Run tests
+npm run test
+
+# Code formatting
 npm run format
 
-# Lint code
+# Linting
 npm run lint
 
 # Type checking
 npm run type-check
 ```
 
-### Pre-commit Hooks
-```yaml
-# .pre-commit-config.yaml
-repos:
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.0.1
-    hooks:
-      - id: trailing-whitespace
-      - id: end-of-file-fixer
-      - id: check-yaml
-      - id: check-added-large-files
+### Docker Commands
 
-  - repo: https://github.com/psf/black
-    rev: 21.9b0
-    hooks:
-      - id: black
+```bash
+# Development environment
+docker-compose -f docker-compose.dev.yml up -d
+docker-compose -f docker-compose.dev.yml down
 
-  - repo: https://github.com/pycqa/isort
-    rev: 5.9.3
-    hooks:
-      - id: isort
+# Production environment
+docker-compose up -d
+docker-compose down
 
-  - repo: https://github.com/pycqa/flake8
-    rev: 3.9.2
-    hooks:
-      - id: flake8
+# Rebuild services
+docker-compose build --no-cache
+
+# View logs
+docker-compose logs -f backend
+docker-compose logs -f frontend
+
+# Access container shell
+docker-compose exec backend bash
+docker-compose exec frontend sh
 ```
 
-## 🚦 Verification Steps
+## 🔍 Development URLs
 
-### Health Check Script
+| Service | URL | Description |
+|---------|-----|-------------|
+| Frontend | http://localhost:3000 | React development server |
+| Backend API | http://localhost:8000 | FastAPI application |
+| API Docs | http://localhost:8000/docs | Swagger UI documentation |
+| Redoc | http://localhost:8000/redoc | Alternative API documentation |
+| PostgreSQL | localhost:5432 | Database connection |
+| Redis | localhost:6379 | Cache and message broker |
+| Qdrant | http://localhost:6333 | Vector database dashboard |
+| Celery Flower | http://localhost:5555 | Task monitoring |
+
+## 🧪 Testing Setup
+
+### Backend Testing
+
 ```bash
-#!/bin/bash
-# scripts/health-check-dev.sh
+# Install test dependencies
+pip install pytest pytest-asyncio pytest-cov httpx
 
-echo "🔍 Checking development environment..."
+# Run all tests
+pytest
 
-# Check if services are running
-check_service() {
-    local service_name=$1
-    local url=$2
-    local expected_status=$3
-    
-    echo "Checking $service_name..."
-    status=$(curl -s -o /dev/null -w "%{http_code}" $url)
-    
-    if [ "$status" = "$expected_status" ]; then
-        echo "✅ $service_name is healthy"
-    else
-        echo "❌ $service_name is not responding (got $status, expected $expected_status)"
-        return 1
-    fi
+# Run with coverage
+pytest --cov=app tests/
+
+# Run specific test file
+pytest tests/test_agents.py
+
+# Run tests in watch mode
+ptw
+```
+
+### Frontend Testing
+
+```bash
+# Install test dependencies
+npm install --save-dev @testing-library/react vitest
+
+# Run tests
+npm run test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage
+npm run test:coverage
+```
+
+## 🐛 Debugging Configuration
+
+### VS Code Debug Configuration (.vscode/launch.json)
+
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "FastAPI Server",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/backend/main.py",
+      "args": [],
+      "console": "integratedTerminal",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/backend"
+      },
+      "cwd": "${workspaceFolder}/backend"
+    },
+    {
+      "name": "React App",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/frontend/node_modules/.bin/vite",
+      "args": ["dev"],
+      "cwd": "${workspaceFolder}/frontend",
+      "console": "integratedTerminal"
+    }
+  ]
 }
-
-# Check frontend
-check_service "Frontend" "http://localhost:3000" "200"
-
-# Check backend API
-check_service "Backend API" "http://localhost:8000/api/health/" "200"
-
-# Check database connection
-echo "Checking database connection..."
-if docker-compose exec -T backend python manage.py check --database default; then
-    echo "✅ Database connection is healthy"
-else
-    echo "❌ Database connection failed"
-    exit 1
-fi
-
-echo "🎉 All services are healthy!"
 ```
 
-### Development Checklist
+### PyCharm Configuration
 
-- [ ] Repository cloned successfully
-- [ ] Environment variables configured
-- [ ] Database running and accessible
-- [ ] Backend server running on port 8000
-- [ ] Frontend server running on port 3000
-- [ ] Redis server running (if using cache)
-- [ ] API endpoints responding correctly
-- [ ] Database migrations applied
-- [ ] Sample data loaded (optional)
-- [ ] Tests passing
-- [ ] Code quality tools configured
-- [ ] IDE/editor configured with proper extensions
+1. **Python Interpreter**: Select the virtual environment Python interpreter
+2. **Run Configuration**: 
+   - Script path: `main.py`
+   - Parameters: `--reload --host 0.0.0.0 --port 8000`
+   - Working directory: `backend/`
+   - Environment variables: Load from `.env` file
 
-## 🐛 Common Issues and Solutions
+## 📊 Performance Monitoring
 
-### Port Already in Use
+### Local Development Monitoring
+
+```python
+# Add to main.py for development profiling
+import time
+from fastapi import Request
+
+@app.middleware("http")
+async def add_process_time_header(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = time.time() - start_time
+    response.headers["X-Process-Time"] = str(process_time)
+    return response
+```
+
+### Database Query Monitoring
+
+```python
+# SQLAlchemy logging for development
+import logging
+
+logging.basicConfig()
+logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
+```
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+#### Backend Not Starting
+
 ```bash
-# Find process using port
-# Windows
-netstat -ano | findstr :8000
-# macOS/Linux
-lsof -i :8000
+# Check Python version
+python --version
 
-# Kill process
-# Windows
-taskkill /PID <PID> /F
-# macOS/Linux
-kill -9 <PID>
+# Verify virtual environment
+which python
+
+# Check dependencies
+pip list
+
+# Verify environment variables
+python -c "import os; print(os.getenv('DATABASE_URL'))"
 ```
 
-### Database Connection Issues
+#### Database Connection Issues
+
 ```bash
 # Check PostgreSQL status
-# Windows: Check Services app
-# macOS: brew services list | grep postgresql
-# Linux: sudo systemctl status postgresql
+docker ps | grep postgres
+
+# Test database connection
+python -c "import asyncpg; print('PostgreSQL available')"
 
 # Reset database
 docker-compose down -v
-docker-compose up db
+docker-compose up -d postgres
 ```
 
-### Node Module Issues
+#### Frontend Build Issues
+
 ```bash
-# Clear npm cache
+# Clear cache
 npm cache clean --force
 
-# Delete node_modules and reinstall
+# Remove node_modules
 rm -rf node_modules package-lock.json
 npm install
+
+# Check Node version
+node --version
 ```
 
-### Python Environment Issues
-```bash
-# Recreate virtual environment
-rm -rf venv
-python -m venv venv
-source venv/bin/activate  # or venv\Scripts\activate on Windows
-pip install -r requirements.dev.txt
-```
+### Performance Issues
+
+- **Slow API responses**: Check database queries and add indexes
+- **High memory usage**: Monitor agent memory consumption
+- **WebSocket disconnections**: Check network stability and connection limits
 
 ## 📚 Additional Resources
 
 ### Documentation Links
-- [Django Documentation](https://docs.djangoproject.com/)
-- [React Documentation](https://reactjs.org/docs/)
+- [FastAPI Documentation](https://fastapi.tiangolo.com/)
+- [LangGraph Documentation](https://langchain-ai.github.io/langgraph/)
+- [React Documentation](https://react.dev/)
 - [PostgreSQL Documentation](https://www.postgresql.org/docs/)
-- [Docker Documentation](https://docs.docker.com/)
+- [Qdrant Documentation](https://qdrant.tech/documentation/)
 
-### Development Guides
-- [Django Best Practices](../backend/06-best-practices.md)
-- [React Development Guidelines](../frontend/05-development-guidelines.md)
-- [API Design Standards](../backend/05-api-reference.md)
-- [Testing Strategies](../backend/04-testing.md)
+### Internal Documentation
+- [Backend Implementation Guide](../backend/README.md)
+- [Agent System Design](../agents/README.md)
+- [Database Schema](../backend/02-database-schema.md)
+- [Deployment Guide](../deployment/README.md)
+- [Monitoring System](../backend/03-monitoring-system.md)
 
 ---
 
-**Last Updated**: August 16, 2025  
-**Version**: 1.0.0  
-**Next Review**: August 30, 2025
+**Last Updated**: September 4, 2025  
+**Technology Stack**: FastAPI + LangGraph + PostgreSQL + Qdrant  
+**Target Deployment**: Oracle Cloud ARM64 (Ampere A1)

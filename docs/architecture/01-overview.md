@@ -40,9 +40,9 @@ The Travel Planner application is designed to be a comprehensive, user-friendly 
 ┌─────────────────────────────────────────────────────────────┐
 │                    APPLICATION LAYER                        │
 ├─────────────────────────────────────────────────────────────┤
-│  Python Backend (Django/Flask)                             │
+│  FastAPI + LangGraph Backend                               │
 │  ├── API Endpoints                                         │
-│  ├── Business Logic                                        │
+│  ├── Multi-Agent Orchestration                             │
 │  ├── Authentication & Authorization                        │
 │  ├── External API Integration                              │
 │  └── Background Tasks                                      │
@@ -85,7 +85,7 @@ The Travel Planner application is designed to be a comprehensive, user-friendly 
 - Real-time updates for collaborative features
 
 #### 2. Backend Layer (Application)
-**Technology**: Django REST Framework (Primary) / Flask (Alternative)  
+**Technology**: FastAPI + LangGraph (Selected)  
 **Responsibilities**:
 - RESTful API endpoint management
 - Business logic implementation
@@ -131,7 +131,7 @@ The Travel Planner application is designed to be a comprehensive, user-friendly 
                                               │ 2. Forward Request
                                               ▼
 ┌─────────────┐    8. HTTP Response   ┌─────────────┐
-│   Browser   │ ◄─────────────────── │   Django    │
+│   Browser   │ ◄─────────────────── │   FastAPI   │
 │  (React)    │                       │  Backend    │
 └─────────────┘                       └─────────────┘
                                               │
@@ -260,7 +260,7 @@ class PlanService:
 
 ### Backend Technology Selection
 
-#### Django REST Framework (Selected)
+#### FastAPI + LangGraph (Selected)
 **Pros**:
 - Rapid development with built-in features
 - Comprehensive ORM with migration support

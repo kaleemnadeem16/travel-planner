@@ -25,11 +25,10 @@ __pycache__/
 dist/
 build/
 
-# Django
-/backend/staticfiles/
+# FastAPI
+/backend/static/
 /backend/media/
 *.log
-db.sqlite3
 
 # React
 /frontend/build/
