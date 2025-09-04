@@ -73,7 +73,7 @@ The Travel Planner's multi-agent system employs **intelligent context management
 
 ### 2. Model-Tier Context Strategies
 
-#### Tier 1 Agents (Premium Models - GPT-4o)
+#### Tier 1 Agents (Premium Models - GPT-5)
 **Token Allocation**: 6,000-8,192 tokens  
 **Context Strategy**: Rich, comprehensive context
 
@@ -98,7 +98,7 @@ class Tier1ContextManager:
         return context
 ```
 
-#### Tier 2 Agents (Standard Models - GPT-4o-mini)
+#### Tier 2 Agents (Standard Models - GPT-5-mini)
 **Token Allocation**: 3,000-6,144 tokens  
 **Context Strategy**: Balanced, focused context
 
@@ -121,7 +121,7 @@ class Tier2ContextManager:
         return context
 ```
 
-#### Tier 3 Agents (Efficient Models - GPT-3.5-turbo)
+#### Tier 3 Agents (Efficient Models - GPT-5-nano)
 **Token Allocation**: 1,000-4,096 tokens  
 **Context Strategy**: Minimal, task-focused context
 
@@ -231,7 +231,7 @@ class LazyContextLoader:
 ```yaml
 Agent Token Budgets:
   planning_agent:
-    model: gpt-4o
+    model: gpt-5
     max_tokens: 8192
     allocation:
       global_context: 1500      # 18%
@@ -240,7 +240,7 @@ Agent Token Budgets:
       reasoning_space: 1692     # 21%
   
   location_agent:
-    model: gpt-4o-mini
+    model: gpt-5-mini
     max_tokens: 6144
     allocation:
       global_context: 1000      # 16%
@@ -249,7 +249,7 @@ Agent Token Budgets:
       response_space: 1000      # 16%
   
   weather_agent:
-    model: gpt-3.5-turbo
+    model: gpt-5-nano
     max_tokens: 2048
     allocation:
       essential_context: 800    # 39%

@@ -277,7 +277,7 @@ class ConflictResolution:
 
 ### Communication Overhead by Agent Tier
 
-#### Tier 1 Agents (Premium Models - GPT-4o)
+#### Tier 1 Agents (Premium Models - GPT-5)
 ```yaml
 Planning Agent:
   communication_frequency: "low"  # Fewer, more comprehensive messages
@@ -292,7 +292,7 @@ Transport Agent:
   retry_strategy: "aggressive"   # Important for bookings
 ```
 
-#### Tier 2 Agents (Standard Models - GPT-4o-mini)
+#### Tier 2 Agents (Standard Models - GPT-5-mini)
 ```yaml
 Location Agent:
   communication_frequency: "medium"
@@ -313,7 +313,7 @@ Activity Agent:
   retry_strategy: "standard"
 ```
 
-#### Tier 3 Agents (Efficient Models - GPT-3.5-turbo)
+#### Tier 3 Agents (Efficient Models - GPT-5-nano)
 ```yaml
 Weather Agent:
   communication_frequency: "low"    # Simple, infrequent requests

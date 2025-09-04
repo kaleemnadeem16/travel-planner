@@ -63,22 +63,22 @@ class ModelConfig(BaseModel):
 # Default configurations
 DEFAULT_MODEL_CONFIGS: Dict[ModelTier, ModelConfig] = {
     ModelTier.TIER1: ModelConfig(
-        model_name="gpt-4o",
+        model_name="gpt-5",
         provider="openai",
         max_tokens=8192,
-        cost_per_1k_tokens=0.03
+        cost_per_1k_tokens=1.25
     ),
     ModelTier.TIER2: ModelConfig(
-        model_name="gpt-4o-mini", 
+        model_name="gpt-5-mini", 
         provider="openai",
         max_tokens=6144,
-        cost_per_1k_tokens=0.015
+        cost_per_1k_tokens=0.25
     ),
     ModelTier.TIER3: ModelConfig(
-        model_name="gpt-3.5-turbo",
+        model_name="gpt-5-nano",
         provider="openai", 
         max_tokens=4096,
-        cost_per_1k_tokens=0.001
+        cost_per_1k_tokens=0.05
     )
 }
 
@@ -117,9 +117,9 @@ AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
 # ===========================================
 
 # Default Model Settings by Tier
-DEFAULT_MODEL_TIER1=gpt-4o
-DEFAULT_MODEL_TIER2=gpt-4o-mini
-DEFAULT_MODEL_TIER3=gpt-3.5-turbo
+DEFAULT_MODEL_TIER1=gpt-5
+DEFAULT_MODEL_TIER2=gpt-5-mini
+DEFAULT_MODEL_TIER3=gpt-5-nano
 DEFAULT_PROVIDER=openai
 
 # Default Token Limits by Tier
@@ -128,37 +128,37 @@ DEFAULT_TOKENS_TIER2=6144
 DEFAULT_TOKENS_TIER3=4096
 
 # Agent-Specific Model Overrides
-PLANNING_AGENT_MODEL=gpt-4o
+PLANNING_AGENT_MODEL=gpt-5
 PLANNING_AGENT_PROVIDER=openai
 PLANNING_AGENT_MAX_TOKENS=8192
 PLANNING_AGENT_TEMPERATURE=0.7
 
-TRANSPORT_AGENT_MODEL=gpt-4o
+TRANSPORT_AGENT_MODEL=gpt-5
 TRANSPORT_AGENT_PROVIDER=openai
 TRANSPORT_AGENT_MAX_TOKENS=8192
 TRANSPORT_AGENT_TEMPERATURE=0.6
 
-LOCATION_AGENT_MODEL=gpt-4o-mini
+LOCATION_AGENT_MODEL=gpt-5-mini
 LOCATION_AGENT_PROVIDER=openai
 LOCATION_AGENT_MAX_TOKENS=6144
 LOCATION_AGENT_TEMPERATURE=0.7
 
-ACCOMMODATION_AGENT_MODEL=gpt-4o-mini
+ACCOMMODATION_AGENT_MODEL=gpt-5-mini
 ACCOMMODATION_AGENT_PROVIDER=openai
 ACCOMMODATION_AGENT_MAX_TOKENS=6144
 ACCOMMODATION_AGENT_TEMPERATURE=0.7
 
-ACTIVITY_AGENT_MODEL=gpt-4o-mini
+ACTIVITY_AGENT_MODEL=gpt-5-mini
 ACTIVITY_AGENT_PROVIDER=openai
 ACTIVITY_AGENT_MAX_TOKENS=6144
 ACTIVITY_AGENT_TEMPERATURE=0.8
 
-BUDGET_AGENT_MODEL=gpt-3.5-turbo
+BUDGET_AGENT_MODEL=gpt-5-nano
 BUDGET_AGENT_PROVIDER=openai
 BUDGET_AGENT_MAX_TOKENS=4096
 BUDGET_AGENT_TEMPERATURE=0.3
 
-WEATHER_AGENT_MODEL=gpt-3.5-turbo
+WEATHER_AGENT_MODEL=gpt-5-nano
 WEATHER_AGENT_PROVIDER=openai
 WEATHER_AGENT_MAX_TOKENS=2048
 WEATHER_AGENT_TEMPERATURE=0.1
@@ -564,10 +564,10 @@ def planning_agent():
     config = AgentConfig(
         agent_type="planning",
         model_config=ModelConfig(
-            model_name="gpt-4o",
+            model_name="gpt-5",
             provider="openai",
             max_tokens=8192,
-            cost_per_1k_tokens=0.03
+            cost_per_1k_tokens=1.25
         ),
         context_manager="default",
         timeout_seconds=30
@@ -645,11 +645,11 @@ async def test_full_planning_flow():
 @pytest.mark.asyncio
 async def test_model_configuration_override():
     # Test that environment variables override default model configurations
-    with patch.dict(os.environ, {"PLANNING_AGENT_MODEL": "gpt-3.5-turbo"}):
+    with patch.dict(os.environ, {"PLANNING_AGENT_MODEL": "gpt-5-mini"}):
         orchestrator = MasterOrchestrator()
         planning_agent = orchestrator.get_agent("planning")
         
-        assert planning_agent.config.model_config.model_name == "gpt-3.5-turbo"
+        assert planning_agent.config.model_config.model_name == "gpt-5-mini"
 ```
 
 #### Load Testing
@@ -1089,11 +1089,11 @@ class ModelOptimizer:
     def _get_cost_optimized_model(self, agent_type: str) -> ModelConfig:
         """Return the most cost-effective model that can handle the agent type"""
         cost_models = {
-            "planning": ModelConfig(model_name="gpt-4o-mini", provider="openai", max_tokens=6144, cost_per_1k_tokens=0.015),
-            "transport": ModelConfig(model_name="gpt-4o-mini", provider="openai", max_tokens=6144, cost_per_1k_tokens=0.015),
-            "location": ModelConfig(model_name="gpt-3.5-turbo", provider="openai", max_tokens=4096, cost_per_1k_tokens=0.001),
-            "budget": ModelConfig(model_name="gpt-3.5-turbo", provider="openai", max_tokens=2048, cost_per_1k_tokens=0.001),
-            "weather": ModelConfig(model_name="gpt-3.5-turbo", provider="openai", max_tokens=1024, cost_per_1k_tokens=0.001)
+            "planning": ModelConfig(model_name="gpt-5-mini", provider="openai", max_tokens=6144, cost_per_1k_tokens=0.25),
+            "transport": ModelConfig(model_name="gpt-5-mini", provider="openai", max_tokens=6144, cost_per_1k_tokens=0.25),
+            "location": ModelConfig(model_name="gpt-5-nano", provider="openai", max_tokens=4096, cost_per_1k_tokens=0.05),
+            "budget": ModelConfig(model_name="gpt-5-nano", provider="openai", max_tokens=2048, cost_per_1k_tokens=0.05),
+            "weather": ModelConfig(model_name="gpt-5-nano", provider="openai", max_tokens=1024, cost_per_1k_tokens=0.05)
         }
         return cost_models.get(agent_type, cost_models["budget"])
 ```
