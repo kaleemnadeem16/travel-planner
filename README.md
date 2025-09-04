@@ -25,9 +25,9 @@ A comprehensive travel planning platform built with React frontend and Python ba
 | Architecture | 🟢 Complete | ✅ Complete | ⏳ Planning |
 | Frontend | 🔴 Not Started | ✅ Complete | ⏳ Planning |
 | Backend | 🔴 Not Started | ✅ Complete | ⏳ Planning |
-| Database | 🔴 Not Started | ✅ Complete | ⏳ Planning |
+| Database | 🟢 Complete | ✅ Complete | ⏳ Planning |
 | Security | 🔴 Not Started | ✅ Complete | ⏳ Planning |
-| External APIs | 🔴 Not Started | ✅ Complete | ⏳ Planning |
+| External APIs | � Complete | ✅ Complete | ⏳ Planning |
 | Deployment | 🔴 Not Started | ✅ Complete | ⏳ Planning |
 
 ## 🛠️ Technology Stack
