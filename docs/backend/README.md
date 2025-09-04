@@ -1,86 +1,135 @@
 # Backend Development Guide (Python)
 
-## Technology Stack
+## 🎯 Current Architecture: FastAPI + LangGraph
 
-- **Framework**: Django REST Framework (recommended) or Flask/FastAPI
-- **Database ORM**: Django ORM or SQLAlchemy
-- **Authentication**: JWT tokens + OAuth2
-- **Password Hashing**: bcrypt or Argon2
-- **Validation**: Django serializers or Pydantic
-- **Rate Limiting**: Redis or in-memory counters
+This guide covers the implementation of our **FastAPI + LangGraph** backend architecture, designed for scalable multi-agent travel planning with comprehensive monitoring and Oracle Cloud ARM deployment.
 
-## Framework Comparison
+> **📋 For detailed architecture decisions, see:** [`01-architecture-decisions.md`](./01-architecture-decisions.md)
 
-### Django REST Framework (Recommended)
-**Pros:**
-- Built-in user model and admin interface
-- Comprehensive authentication system
-- Serializers for data validation
-- Extensive middleware support
-- Rich ecosystem and documentation
+## 🏗️ Core Technology Stack
 
-**Cons:**
-- Heavier footprint
-- More opinionated structure
+### **Primary Framework Stack**
+- **API Framework**: FastAPI 0.104+ (async-first, high performance)
+- **Agent Framework**: LangGraph (state management, workflow orchestration)
+- **Model Integration**: Universal provider abstraction (OpenAI, Anthropic, Azure, etc.)
+- **Database**: PostgreSQL 15+ (primary) + Qdrant (vector storage)
+- **Caching**: Redis 7+ (sessions, queues, agent communication)
+- **Task Queue**: Celery (background agent processing)
+- **Monitoring**: LangSmith + Prometheus + Grafana
+- **Authentication**: JWT tokens with FastAPI Security
+- **Validation**: Pydantic v2 (type safety throughout)
 
-### Flask/FastAPI Alternative
-**Pros:**
-- Lightweight and flexible
-- Fast development for simple APIs
-- FastAPI has automatic API documentation
+### **Why FastAPI + LangGraph?**
+✅ **Native async/await** - Perfect for concurrent agent execution  
+✅ **Automatic API docs** - OpenAPI/Swagger out of the box  
+✅ **Type safety** - Pydantic integration prevents runtime errors  
+✅ **High performance** - Comparable to Node.js/Go  
+✅ **LangGraph state management** - Purpose-built for multi-agent workflows  
+✅ **Provider flexibility** - Easy switching between AI providers  
+✅ **Production ready** - WebSocket support, monitoring, health checks
 
-**Cons:**
-- More manual setup required
-- Authentication implementation from scratch
-
-## Project Structure (Django)
+## 📁 Project Structure (FastAPI + LangGraph)
 
 ```
 backend/
-├── travel_planner/
+├── app/
 │   ├── __init__.py
-│   ├── settings.py
-│   ├── urls.py
-│   └── wsgi.py
-├── apps/
-│   ├── authentication/
-│   │   ├── models.py
-│   │   ├── serializers.py
-│   │   ├── views.py
-│   │   └── urls.py
-│   ├── plans/
-│   │   ├── models.py
-│   │   ├── serializers.py
-│   │   ├── views.py
-│   │   └── urls.py
-│   └── core/
-│       ├── permissions.py
-│       ├── middleware.py
-│       └── utils.py
-├── requirements.txt
-└── manage.py
+│   ├── main.py                 # FastAPI application entry point
+│   ├── core/
+│   │   ├── config.py           # Environment configuration
+│   │   ├── database.py         # Database connections
+│   │   ├── security.py         # Authentication & JWT
+│   │   ├── model_providers.py  # Universal AI provider abstraction
+│   │   ├── monitoring.py       # LangSmith & metrics integration
+│   │   └── vector_store.py     # Qdrant vector database
+│   ├── agents/
+│   │   ├── base_agent.py       # Abstract agent base class
+│   │   ├── planning_agent.py   # Trip planning agent
+│   │   ├── location_agent.py   # Location research agent
+│   │   ├── transport_agent.py  # Transportation agent
+│   │   ├── accommodation_agent.py
+│   │   ├── activity_agent.py
+│   │   ├── budget_agent.py
+│   │   └── weather_agent.py
+│   ├── orchestrator/
+│   │   ├── graph_workflow.py   # LangGraph workflow definition
+│   │   ├── state_manager.py    # Workflow state management
+│   │   ├── coordinator.py      # Agent coordination logic
+│   │   └── tasks.py           # Celery background tasks
+│   ├── api/
+│   │   ├── routes/
+│   │   │   ├── auth.py         # Authentication endpoints
+│   │   │   ├── plans.py        # Travel plan CRUD
+│   │   │   ├── agents.py       # Agent interaction endpoints
+│   │   │   ├── monitoring.py   # Cost & performance monitoring
+│   │   │   └── websocket.py    # Real-time agent communication
+│   │   ├── dependencies.py     # FastAPI dependency injection
+│   │   ├── middleware.py       # Custom middleware
+│   │   └── exceptions.py       # Error handling
+│   ├── models/
+│   │   ├── database.py         # SQLAlchemy models
+│   │   ├── schemas.py          # Pydantic schemas
+│   │   └── enums.py            # Enums and constants
+│   ├── services/
+│   │   ├── auth_service.py     # Authentication logic
+│   │   ├── plan_service.py     # Plan management
+│   │   ├── cost_service.py     # Cost tracking & optimization
+│   │   └── vector_service.py   # Vector search & RAG
+│   └── utils/
+│       ├── helpers.py          # Utility functions
+│       ├── validators.py       # Custom validators
+│       └── formatters.py       # Data formatting
+├── tests/
+│   ├── unit/              # Unit tests for agents & services
+│   ├── integration/       # Integration tests
+│   └── load/              # Load testing
+├── migrations/           # Database migrations (Alembic)
+├── requirements.txt      # Python dependencies
+├── Dockerfile.arm64      # ARM64 optimized container
+├── docker-compose.yml    # Development environment
+└── .env.example          # Environment template
 ```
 
-## API Endpoints
+## 🚀 API Endpoints (FastAPI)
 
 ### Authentication Endpoints
 
 ```python
-# authentication/urls.py
-urlpatterns = [
-    path('signup/', SignupView.as_view(), name='signup'),
-    path('login/', LoginView.as_view(), name='login'),
-    path('logout/', LogoutView.as_view(), name='logout'),
-    path('user/', UserProfileView.as_view(), name='user-profile'),
-    path('token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
-    
-    # Social OAuth
-    path('login/google/', GoogleOAuth2LoginView.as_view(), name='google-login'),
-    path('login/facebook/', FacebookOAuth2LoginView.as_view(), name='facebook-login'),
-]
+# app/api/routes/auth.py
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.security import HTTPBearer
+
+router = APIRouter(prefix="/auth", tags=["authentication"])
+security = HTTPBearer()
+
+@router.post("/signup", response_model=UserResponse)
+async def signup(user_data: UserCreate):
+    """Register new user with email/password"""
+    pass
+
+@router.post("/login", response_model=TokenResponse)
+async def login(credentials: UserLogin):
+    """Authenticate user and return JWT tokens"""
+    pass
+
+@router.post("/refresh", response_model=TokenResponse)
+async def refresh_token(current_user: User = Depends(get_current_user)):
+    """Refresh access token"""
+    pass
+
+@router.get("/me", response_model=UserResponse)
+async def get_current_user_profile(current_user: User = Depends(get_current_user)):
+    """Get current user profile"""
+    pass
+
+# Social OAuth endpoints
+@router.get("/oauth/google")
+async def google_oauth():
+    """Initiate Google OAuth flow"""
+    pass
 ```
 
-### Plan Management Endpoints
+### Travel Plan Management
 
 ```python
 # plans/urls.py

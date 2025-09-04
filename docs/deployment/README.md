@@ -1,54 +1,150 @@
-# Deployment & Infrastructure
+# Oracle Cloud ARM64 Deployment Guide
 
-## Deployment Strategy
+## 🎯 Deployment Strategy: Oracle Cloud Ampere A1
 
-### Development Environment
-- **Local Development**: Docker Compose for easy setup
-- **Frontend**: React development server (localhost:3000)
-- **Backend**: Django/Flask development server (localhost:8000)
-- **Database**: PostgreSQL in Docker container
-- **Cache**: Redis in Docker container (optional)
+This guide focuses on deploying the Travel Planner multi-agent system on **Oracle Cloud ARM64 infrastructure** using the free Ampere A1 compute instances (4 CPUs, 24GB RAM).
 
-### Production Environment Options
+> **📋 For complete technical details, see:**
+> - **Backend Architecture**: [`/backend/01-architecture-decisions.md`](../backend/01-architecture-decisions.md)
+> - **Environment Setup**: [`/backend/04-environment-setup.md`](../backend/04-environment-setup.md)
+> - **Monitoring System**: [`/backend/03-monitoring-system.md`](../backend/03-monitoring-system.md)
 
-#### Option 1: Free Tier Cloud Deployment
-- **Frontend**: Vercel, Netlify, or GitHub Pages
-- **Backend**: Railway, Render, or Heroku free tier
-- **Database**: PostgreSQL on Railway, Render, or Supabase
-- **Static Files**: Cloudinary or AWS S3 free tier
+## 🏗️ Target Architecture: Oracle Cloud ARM64
 
-#### Option 2: VPS Deployment
-- **Server**: DigitalOcean Droplet, Linode, or Vultr VPS
-- **Web Server**: Nginx as reverse proxy
-- **Application Server**: Gunicorn for Django, uWSGI for Flask
-- **Database**: PostgreSQL on same server
-- **SSL**: Let's Encrypt certificates
+### **Why Oracle Cloud Ampere A1?**
+✅ **Free Tier**: 4 ARM64 CPUs + 24GB RAM + 200GB storage  
+✅ **High Performance**: Ampere A1 processors optimized for cloud workloads  
+✅ **Cost Effective**: Excellent price/performance ratio for production  
+✅ **ARM64 Ecosystem**: Growing support for ARM64 containers and packages  
+✅ **Sustainability**: Lower power consumption than x86 alternatives
 
-#### Option 3: Container Deployment
-- **Platform**: DigitalOcean App Platform, Render, or Fly.io
-- **Containerization**: Docker containers
-- **Orchestration**: Docker Compose or Kubernetes (for scaling)
+### **Resource Allocation (24GB RAM, 4 CPUs)**
+- **FastAPI Backend**: 4GB RAM, 2 CPUs
+- **PostgreSQL Database**: 4GB RAM, 1 CPU
+- **Redis Cache**: 2GB RAM, 0.5 CPU
+- **Qdrant Vector DB**: 4GB RAM, 1 CPU
+- **Agent Workers**: 6GB RAM, 1.5 CPUs (distributed)
+- **Monitoring Stack**: 2GB RAM, 0.5 CPU
+- **Frontend/Nginx**: 1GB RAM, 0.5 CPU
+- **System Overhead**: 1GB RAM, 0.5 CPU
 
-## Docker Setup
+## 🐳 ARM64 Optimized Docker Configuration
 
-### Development Docker Compose
+### Production Docker Compose (Oracle Cloud ARM64)
 
 ```yaml
-# docker-compose.yml
+# docker-compose.arm64.yml - Optimized for Oracle Cloud Ampere A1
 version: '3.8'
 
 services:
-  db:
-    image: postgres:15
+  # FastAPI Backend - ARM64 optimized
+  travel-planner-api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.arm64
+    image: travel-planner-api:arm64
+    platform: linux/arm64
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://user:pass@postgres:5432/travel_planner
+      - REDIS_URL=redis://redis:6379/0
+      - QDRANT_URL=http://qdrant:6333
+      - ENVIRONMENT=production
+    volumes:
+      - ./backend/.env.production:/app/.env:ro
+    deploy:
+      resources:
+        limits:
+          memory: 4G      # 4GB out of 24GB for main API
+          cpus: '2.0'     # 2 cores out of 4 for main service
+        reservations:
+          memory: 2G
+          cpus: '1.0'
+    depends_on:
+      - postgres
+      - redis
+      - qdrant
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Agent Workers - Multiple ARM64 instances
+  agent-worker-planning:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.arm64
+    platform: linux/arm64
+    command: celery -A tasks worker --loglevel=info --queues=planning_tasks --concurrency=2
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - AGENT_TYPE=planning
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  agent-worker-general:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.arm64
+    platform: linux/arm64
+    command: celery -A tasks worker --loglevel=info --queues=location_tasks,transport_tasks,accommodation_tasks,activity_tasks --concurrency=4
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          memory: 1.5G
+          cpus: '0.5'
+        reservations:
+          memory: 1G
+          cpus: '0.25'
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  # PostgreSQL - ARM64 optimized
+  postgres:
+    image: postgres:15-alpine  # ARM64 compatible
+    platform: linux/arm64
     environment:
       POSTGRES_DB: travel_planner
-      POSTGRES_USER: travel_user
-      POSTGRES_PASSWORD: travel_password
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
-    ports:
-      - "5432:5432"
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    deploy:
+      resources:
+        limits:
+          memory: 4G      # 4GB for database
+          cpus: '1.0'
+        reservations:
+          memory: 2G
+          cpus: '0.5'
+    restart: unless-stopped
+    command: |
+      postgres 
+      -c shared_preload_libraries=pg_stat_statements
+      -c max_connections=200
+      -c shared_buffers=1GB
+      -c effective_cache_size=3GB
+      -c work_mem=64MB
+      -c maintenance_work_mem=512MB
 
   redis:
     image: redis:7-alpine

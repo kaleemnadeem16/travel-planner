@@ -1,40 +1,43 @@
-# Implementation Guide & Technical Stack
+# Implementation Guide & Development Roadmap
 
-## 🎯 Implementation Overview
+## 🎯 Updated Implementation Strategy
 
-This guide provides step-by-step instructions for implementing the multi-agent Travel Planner system with configurable model support, including technology selection, development environment setup, and deployment strategies.
+This guide provides a streamlined implementation roadmap for the multi-agent Travel Planner system based on our finalized architecture decisions.
 
-## 🏗️ Technology Stack & Architecture
+> **📋 For complete technical details, see:**
+> - **Backend Architecture**: [`/backend/01-architecture-decisions.md`](../backend/01-architecture-decisions.md)
+> - **Database Schema**: [`/backend/02-database-schema.md`](../backend/02-database-schema.md)
+> - **Monitoring System**: [`/backend/03-monitoring-system.md`](../backend/03-monitoring-system.md)
 
-### 1. Core Agent Infrastructure
+## 🏗️ Finalized Technology Stack
 
-#### Backend Framework & Agent Runtime
-```yaml
-Agent Runtime:
-  Primary: Python 3.11+ with FastAPI
-  Agent Framework: LangChain + Custom Orchestrator
-  Model Integration: OpenAI API, Azure OpenAI, Anthropic
-  
-Core Dependencies:
-  - fastapi==0.104.1
-  - langchain==0.1.0
-  - openai==1.3.0
-  - anthropic==0.8.0
-  - pydantic==2.5.0
-  - redis==5.0.1
-  - celery==5.3.4
-  - sqlalchemy==2.0.23
-  - alembic==1.13.0
-```
+### **Core Architecture**
+- **Backend Framework**: FastAPI 0.104+ (async-first, high performance)
+- **Agent Framework**: LangGraph (state management, workflow orchestration)
+- **Model Abstraction**: Universal provider layer (OpenAI, Anthropic, Azure, etc.)
+- **Primary Database**: PostgreSQL 15+ (comprehensive tracking & versioning)
+- **Vector Database**: Qdrant (RAG, similarity search, response caching)
+- **Message Queue**: Redis 7+ + Celery (agent coordination)
+- **Monitoring**: LangSmith + Prometheus + Grafana
+- **Deployment**: Oracle Cloud ARM64 (Ampere A1 optimized)
 
-#### Agent Communication Layer
-```yaml
-Message Queue: Redis + Celery
-Real-time Communication: WebSockets (FastAPI WebSocket)
-Event Streaming: Redis Streams
-State Management: PostgreSQL + Redis Cache
-Service Discovery: Consul (optional) or Built-in Registry
-```
+### **Key Architectural Decisions**
+
+📝 **Why FastAPI + LangGraph?**
+- Native async/await for concurrent agent execution
+- Automatic API documentation and type safety
+- LangGraph provides purpose-built multi-agent state management
+- Superior performance compared to Django for our use case
+
+📝 **Why PostgreSQL + Qdrant?**
+- PostgreSQL: Complete audit trail, version control, cost tracking
+- Qdrant: Vector search for plan recommendations and response caching
+- Both optimized for Oracle Cloud ARM64 deployment
+
+📝 **Why LangSmith + Prometheus?**
+- LangSmith: AI-specific monitoring, token tracking, model comparisons
+- Prometheus: Infrastructure metrics, custom business metrics
+- Combined: Complete visibility into both technical and business performance
 
 #### Model Configuration System
 ```python
